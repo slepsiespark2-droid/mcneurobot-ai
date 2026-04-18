@@ -1,2 +1,87 @@
-# mcneurobot-ai
-Open-source Minecraft AI companion bot with long-term memory, chat intelligence, survival logic, and adaptive behavior
+<div align="center">
+
+# 🤖 NEUROBOT AI
+
+### 🧠 A Living Minecraft Companion Powered by Adaptive AI
+
+<img src="banner.png" alt="NeuroBot AI Banner" width="100%"/>
+
+---
+
+🔥 *“A Minecraft bot that doesn’t feel like a bot… it feels aware.”*
+
+</div>
+
+---
+
+## 🌍 What is NeuroBot AI?
+
+**NeuroBot AI** is an open-source Minecraft companion system designed to behave like a *living player inside your world*.
+
+It doesn’t just react — it:
+- remembers you 🧠  
+- learns your actions 📊  
+- protects your world 🏠  
+- and evolves over time ⚡  
+
+Think of it as:
+> 🤖 “Your Minecraft world… but with an AI companion that never forgets you.”
+
+---
+
+## ✨ Core Features
+
+### 🧠 Long-Term Memory System
+- Remembers players across sessions
+- Tracks interactions & behavior
+- Builds evolving relationships
+
+### 💬 Natural Chat Intelligence
+- Responds only when mentioned (`Neuro`)
+- Context-aware conversation system
+- Feels like a real player, not a script
+
+### 🏠 Base Awareness System
+- Detects player-built structures
+- Learns territory locations
+- Helps protect bases automatically
+
+### ⚔️ Survival Intelligence
+- Reacts to mobs & danger nearby
+- Assists players in combat situations
+- Adaptive survival decisions
+
+### 🤖 Adaptive Personality Engine
+- Changes behavior based on world state
+- Friendly / Guard / Alert modes
+- Dynamic “living companion” feel
+
+---
+
+## 🌀 Support 
+- Orange Pi
+- Raspberry Pi
+- Termux (Android-based)
+
+---
+
+## 🚀 Installation
+
+### 1️⃣ Requirements
+- Node.js 18+
+- npm
+- Minecraft Java Server (1.8+ recommended)
+
+---
+
+### 2️⃣ Install Project
+
+```bash
+- pkg install nodejs
+- pkg install git
+- git clone https://github.com/slepsiespark2-droid/mcneurobot-ai.git
+- cd mcneurobot-ai
+- npm install mineflayer mineflayer-pathfinder axios fs
+- npm install
+- node bot.js
+Pro-tip: Run nano bot.js before running node bot.js, find host and put your server ip and another find port, and put your server port
