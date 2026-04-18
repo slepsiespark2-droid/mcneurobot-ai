@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🤖 NEUROBOT AI
+# 🤖 Neurobot AI
 
 ### 🧠 A Living Minecraft Companion Powered by Adaptive AI
 
@@ -83,5 +83,8 @@ Think of it as:
 - cd mcneurobot-ai
 - npm install mineflayer mineflayer-pathfinder axios fs
 - npm install
+- export MC_HOST=your.server.ip
+- export MC_PORT=25565
+- export MC_USERNAME=NeuroBotAI
+- export GROK_API_KEY=your_key
 - node bot.js
-Pro-tip: Run nano bot.js before running node bot.js, find host and put your server ip and another find port, and put your server port
