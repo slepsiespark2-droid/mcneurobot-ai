@@ -1,237 +1,166 @@
-require('dotenv').config()
+// ===== LOAD ENV (optional .env support) =====
+try { require('dotenv').config() } catch {}
 
+// ===== IMPORTS =====
 const mineflayer = require('mineflayer')
-const { pathfinder, goals } = require('mineflayer-pathfinder')
-const axios = require('axios')
 const fs = require('fs')
 
-/* =======================
-   CONFIG (SAFE)
-======================= */
+// ===== ENV CONFIG =====
+const HOST = process.env.MC_HOST || 'localhost'
+const PORT = parseInt(process.env.MC_PORT) || 25565
+const USERNAME = process.env.MC_USERNAME || 'NeuroBotAI'
+const GROK_API_KEY = process.env.GROK_API_KEY
 
-const GROQ_API_KEY = process.env.GROQ_API_KEY
+// ===== CREATE BOT =====
+const bot = mineflayer.createBot({
+  host: HOST,
+  port: PORT,
+  username: USERNAME
+})
 
-let bot
-let startTime = Date.now()
-const SESSION_TIME = 60 * 60 * 1000
+// ===== MEMORY SYSTEM =====
+const memoryFile = 'memory.json'
+let memory = {}
 
-/* =======================
-   MEMORY SYSTEM
-======================= */
-
-const FILE = './memory.json'
-
-// auto-create memory file
-if (!fs.existsSync(FILE)) {
-  fs.writeFileSync(FILE, JSON.stringify({}, null, 2))
+if (fs.existsSync(memoryFile)) {
+  memory = JSON.parse(fs.readFileSync(memoryFile))
+} else {
+  fs.writeFileSync(memoryFile, JSON.stringify({}))
 }
 
-function loadMemory() {
-  return JSON.parse(fs.readFileSync(FILE))
+function saveMemory() {
+  fs.writeFileSync(memoryFile, JSON.stringify(memory, null, 2))
 }
 
-function saveMemory(data) {
-  fs.writeFileSync(FILE, JSON.stringify(data, null, 2))
+// ===== ACTION SYSTEM =====
+let actionInterval = null
+
+function stopAllActions() {
+  bot.clearControlStates()
+  if (actionInterval) clearInterval(actionInterval)
 }
 
-let memory = loadMemory()
+function performAction(action) {
+  stopAllActions()
 
-function remember(player, msg) {
-  if (!memory[player]) {
-    memory[player] = { messages: 0, last: "" }
+  switch (action) {
+
+    case "happy":
+      actionInterval = setInterval(() => {
+        bot.setControlState('sneak', true)
+        setTimeout(() => bot.setControlState('sneak', false), 200)
+      }, 400)
+      setTimeout(stopAllActions, 5000)
+      break
+
+    case "run":
+      bot.setControlState('sprint', true)
+      bot.setControlState('forward', true)
+
+      actionInterval = setInterval(() => {
+        bot.setControlState('jump', true)
+        setTimeout(() => bot.setControlState('jump', false), 200)
+      }, 600)
+
+      setTimeout(stopAllActions, 5000)
+      break
+
+    case "walk":
+      bot.setControlState('forward', true)
+      setTimeout(stopAllActions, 4000)
+      break
+
+    case "stop":
+    default:
+      stopAllActions()
+      break
   }
-
-  memory[player].messages++
-  memory[player].last = msg
-
-  saveMemory(memory)
 }
 
-/* =======================
-   MOOD SYSTEM
-======================= */
-
-let mood = "neutral"
-
-/* =======================
-   BOT CREATE
-======================= */
-
-function createBot() {
-  bot = mineflayer.createBot({
-    host: "YOUR_SERVER_IP",
-    port: 25565,
-    username: "NeuroBotAI",
-    version: "1.21.4",
-    viewDistance: 'tiny'
-  })
-
-  bot.loadPlugin(pathfinder)
-
-  bot.once('spawn', () => {
-    console.log("🤖 Neuro online")
-    startTime = Date.now()
-  })
-
-  /* =======================
-     CHAT SYSTEM (NEURO ONLY)
-  ======================= */
-
-  let lastAI = 0
-  let processing = false
-
-  bot.on('chat', async (username, message) => {
-    if (username === bot.username) return
-
-    const msg = message.toLowerCase()
-
-    // ONLY respond if "neuro"
-    if (!msg.includes("neuro")) return
-
-    if (processing) return
-    if (Date.now() - lastAI < 2000) return
-
-    processing = true
-    lastAI = Date.now()
-
-    const cleanMessage = message.replace(/neuro/ig, '').trim()
-    if (!cleanMessage) {
-      processing = false
-      return
-    }
-
-    remember(username, cleanMessage)
-
-    const state = {
-      player: username,
-      message: cleanMessage,
-      mood,
-      memory: memory[username] || {}
-    }
-
-    const ai = await askAI(state)
-
-    try {
-      const res = JSON.parse(ai)
-
-      setTimeout(() => {
-        if (res.reply) bot.chat(addPersonality(res.reply))
-
-        if (res.action === "follow") {
-          const p = bot.players[username]
-          if (p?.entity) {
-            bot.pathfinder.setGoal(
-              new goals.GoalFollow(p.entity, 2),
-              true
-            )
-          }
-        }
-
-        if (res.action === "protect") {
-          bot.chat("🛡️ I got you.")
-        }
-
-        processing = false
-      }, 800 + Math.random() * 1200)
-
-    } catch {
-      bot.chat("🤖 brain lagged...")
-      processing = false
-    }
-  })
-
-  /* =======================
-     RECONNECT
-  ======================= */
-
-  bot.on('end', () => {
-    console.log("🔁 reconnecting in 8s...")
-    setTimeout(createBot, 8000)
-  })
-
-  bot.on('error', (err) => {
-    console.log("Error:", err.message)
-  })
-
-  /* =======================
-     SESSION LIMIT
-  ======================= */
-
-  setInterval(() => {
-    if (Date.now() - startTime > SESSION_TIME) {
-      bot.end()
-    }
-  }, 5000)
-}
-
-createBot()
-
-/* =======================
-   🧠 GROQ AI
-======================= */
-
-async function askAI(state) {
+// ===== GROK AI =====
+async function getAIResponse(message, username) {
   try {
-    const res = await axios.post(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        model: "llama-3.3-70b-versatile",
+    // memory update
+    if (!memory[username]) {
+      memory[username] = { chats: 0 }
+    }
+    memory[username].chats++
+    saveMemory()
+
+    if (!GROK_API_KEY) {
+      return {
+        chat: "No API key set 😅",
+        action: "stop"
+      }
+    }
+
+    const res = await fetch("https://api.x.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${GROK_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "grok-beta",
         messages: [
           {
             role: "system",
-            content: `
-You are NeuroBot AI.
-
-Minecraft companion with personality:
-- funny 😂
-- friendly 🤝
-- slightly chaotic
-
-Return ONLY JSON:
-{
-  "reply": "message",
-  "action": "follow | protect | stay"
-}
-`
+            content: "You are NeuroBot, a Minecraft AI companion. Reply short. Include one action keyword: happy, run, walk, or stop."
           },
           {
             role: "user",
-            content: JSON.stringify(state)
+            content: message
           }
         ]
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${GROQ_API_KEY}`,
-          "Content-Type": "application/json"
-        }
-      }
-    )
-
-    return res.data.choices[0].message.content
-  } catch {
-    return JSON.stringify({
-      reply: "brain lag 😭",
-      action: "stay"
+      })
     })
+
+    const data = await res.json()
+    const text = data?.choices?.[0]?.message?.content || "..."
+
+    // detect action
+    let action = "happy"
+    const lower = text.toLowerCase()
+
+    if (lower.includes("run")) action = "run"
+    else if (lower.includes("walk")) action = "walk"
+    else if (lower.includes("stop")) action = "stop"
+
+    return {
+      chat: text.replace(/(happy|run|walk|stop)/gi, "").trim(),
+      action
+    }
+
+  } catch (err) {
+    console.log("AI error:", err)
+    return {
+      chat: "AI error 😅",
+      action: "stop"
+    }
   }
 }
 
-/* =======================
-   😂 PERSONALITY
-======================= */
+// ===== CHAT HANDLER =====
+bot.on('chat', async (username, message) => {
+  if (username === bot.username) return
 
-function addPersonality(text) {
-  const jokes = [
-    "😂 I just tried to mine air again",
-    "⛏️ mining = confusion simulator",
-    "🤖 I promise I’m smart… sometimes",
-    "😭 I survived another day somehow"
-  ]
+  // only respond if "Neuro"
+  if (!message.toLowerCase().includes("neuro")) return
 
-  if (Math.random() < 0.15) {
-    return text + " " + jokes[Math.floor(Math.random() * jokes.length)]
-  }
+  const ai = await getAIResponse(message, username)
 
-  return text
-}
+  if (ai.chat) bot.chat(ai.chat)
+  if (ai.action) performAction(ai.action)
+})
+
+// ===== EVENTS =====
+bot.on('spawn', () => {
+  console.log(`✅ Connected to ${HOST}:${PORT}`)
+})
+
+bot.on('end', () => {
+  console.log('❌ Disconnected. Restarting...')
+  setTimeout(() => process.exit(), 5000)
+})
+
+bot.on('error', err => console.log(err))
