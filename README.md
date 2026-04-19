@@ -83,8 +83,12 @@ Think of it as:
 - cd mcneurobot-ai
 - npm install mineflayer mineflayer-pathfinder axios fs
 - npm install
-- export MC_HOST=your.server.ip
+- npm install dotenv
+- export MC_HOST=your_server_ip
 - export MC_PORT=25565
 - export MC_USERNAME=NeuroBotAI
-- export GROK_API_KEY=your_key
+- export MC_PASSWORD=nodejs
+- export GROK_API_KEY=gsk_YOURKEY
+- export MC_VERSION=1.21.4
+- export BOT_SKIN=TomiiStorm_
 - node bot.js
